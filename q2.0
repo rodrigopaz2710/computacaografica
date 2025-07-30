@@ -1,0 +1,113 @@
+#include <GL/glut.h>
+#include <stdlib.h>
+
+static int shoulder = 0, elbow = 0, wrist = 0, finger1 = 0, finger2 = 0;
+
+void init(void) {
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glEnable(GL_DEPTH_TEST);
+}
+
+void drawPart(float sx, float sy, float sz, float r, float g, float b) {
+    glColor3f(r, g, b);
+    glutSolidCube(1.0);
+
+    glColor3f(1.0, 1.0, 1.0); // Wire em branco
+    glutWireCube(1.0);
+}
+
+void display(void) {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLoadIdentity();
+    gluLookAt(0.0, 0.0, 8.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+
+    glPushMatrix(); // base
+        glTranslatef(-1.0, 0.0, 0.0);
+        glRotatef((GLfloat)shoulder, 0.0, 0.0, 1.0);
+        glTranslatef(1.0, 0.0, 0.0);
+        glPushMatrix();
+            glScalef(2.0, 0.4, 1.0);
+            drawPart(2, 0.4, 1, 0.2f, 0.6f, 1.0f); // ombro
+        glPopMatrix();
+
+        glTranslatef(1.0, 0.0, 0.0);
+        glRotatef((GLfloat)elbow, 0.0, 0.0, 1.0);
+        glTranslatef(1.0, 0.0, 0.0);
+        glPushMatrix();
+            glScalef(2.0, 0.4, 1.0);
+            drawPart(2, 0.4, 1, 0.4f, 1.0f, 0.4f); // antebraço
+        glPopMatrix();
+
+        glTranslatef(1.0, 0.0, 0.0);
+        glRotatef((GLfloat)wrist, 0.0, 0.0, 1.0);
+        glTranslatef(0.4, 0.0, 0.0);
+        glPushMatrix();
+            glScalef(0.8, 0.3, 1.0);
+            drawPart(1, 0.3, 1, 1.0f, 0.7f, 0.3f); // pulso
+        glPopMatrix();
+
+        // dedo 1
+        glPushMatrix();
+            glTranslatef(0.7, 0.1, 0.0);
+            glRotatef((GLfloat)finger1, 0.0, 0.0, 1.0);
+            glTranslatef(0.2, 0.0, 0.0);
+            glPushMatrix();
+                glScalef(0.4, 0.1, 0.3);
+                drawPart(1, 1, 1, 1.0f, 0.0f, 0.0f); // dedo 1
+            glPopMatrix();
+        glPopMatrix();
+
+        // dedo 2
+        glPushMatrix();
+            glTranslatef(0.7, -0.1, 0.0);
+            glRotatef((GLfloat)finger2, 0.0, 0.0, 1.0);
+            glTranslatef(0.2, 0.0, 0.0);
+            glPushMatrix();
+                glScalef(0.4, 0.1, 0.3);
+                drawPart(1, 1, 1, 1.0f, 0.0f, 0.0f); // dedo 2
+            glPopMatrix();
+        glPopMatrix();
+    glPopMatrix();
+
+    glutSwapBuffers();
+}
+
+void reshape(int w, int h) {
+    glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(65.0, (GLfloat)w / (GLfloat)h, 1.0, 20.0);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+void keyboard(unsigned char key, int x, int y) {
+    switch (key) {
+        case 's': shoulder = (shoulder + 5) % 360; break;
+        case 'S': shoulder = (shoulder - 5) % 360; break;
+        case 'e': elbow = (elbow + 5) % 360; break;
+        case 'E': elbow = (elbow - 5) % 360; break;
+        case 'w': wrist = (wrist + 5) % 360; break;
+        case 'W': wrist = (wrist - 5) % 360; break;
+        case 'f': finger1 = (finger1 + 5) % 360; break;
+        case 'F': finger1 = (finger1 - 5) % 360; break;
+        case 'g': finger2 = (finger2 + 5) % 360; break;
+        case 'G': finger2 = (finger2 - 5) % 360; break;
+        case 27: exit(0);
+    }
+    glutPostRedisplay();
+}
+
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+    glutInitWindowSize(600, 600);
+    glutInitWindowPosition(100, 100);
+    glutCreateWindow("robot arm");
+    init();
+    glutDisplayFunc(display);
+    glutReshapeFunc(reshape);
+    glutKeyboardFunc(keyboard);
+    glutMainLoop();
+    return 0;
+}
