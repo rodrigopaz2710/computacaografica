@@ -1,0 +1,153 @@
+#include <GL/glut.h>   
+#include <stdlib.h>
+
+/* Modo 0: traduz luz através do toroide (passa por dentro)
+   Modo 1: headlight – a luz se move junto com a câmera e há um 2º toroide atrás */
+static int   mode  = 0;     /* 0 = traduz luz; 1 = headlight + 2º toroide */
+static float Lz    = -1.5f; /* posição Z da luz no modo 0 (atravessa o toro) */
+static float camZ  = 5.0f;  /* posição da câmera no modo 1 */
+
+/* Inicialização de iluminação e z-buffer */
+void init(void)
+{
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glShadeModel(GL_SMOOTH);
+
+    /* Luz branca padrão (podemos manter os defaults) */
+    GLfloat light_diffuse[]  = {1.0f, 1.0f, 1.0f, 1.0f};
+    GLfloat light_specular[] = {1.0f, 1.0f, 1.0f, 1.0f};
+    glLightfv(GL_LIGHT0, GL_DIFFUSE,  light_diffuse);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);
+
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glEnable(GL_DEPTH_TEST);
+}
+
+static void drawLightMarker()
+{
+    glDisable(GL_LIGHTING);
+    glColor3f(1.0f, 1.0f, 0.0f); /* amarelo */
+    glutWireCube(0.1);
+    glEnable(GL_LIGHTING);
+}
+
+void display(void)
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    if (mode == 0)
+    {
+        /* ---------- MODO 0: traduz a luz e faz passar pelo toro ---------- */
+        gluLookAt(0.0, 0.0, 5.0,   0.0, 0.0, 0.0,   0.0, 1.0, 0.0);
+
+        /* Posiciona a luz em WORLD coords usando a modelview corrente */
+        GLfloat pos[] = {0.0f, 0.0f, 0.0f, 1.0f}; /* posição local (0,0,0) */
+        glPushMatrix();
+            glTranslatef(0.0f, 0.0f, Lz);         /* anda ao longo de Z */
+            glLightfv(GL_LIGHT0, GL_POSITION, pos);
+            drawLightMarker();                   /* desenha cubinho na luz */
+        glPopMatrix();
+
+        /* Toroide no centro */
+        glutSolidTorus(0.275, 0.85, 24, 48);
+    }
+    else
+    {
+        /* ---------- MODO 1: headlight + segundo toroide atrás ---------- */
+        /* 1) Define posição da luz como PRIMEIRA transformação 
+           Com (0,0,0,1) a luz “cola” na câmera (headlight). */
+        GLfloat posEye[] = {0.0f, 0.0f, 0.0f, 1.0f};
+        glLightfv(GL_LIGHT0, GL_POSITION, posEye);
+
+        /* 2) Agora move a câmera; a luz acompanha a câmera. */
+        gluLookAt(0.0, 0.0, camZ,   0.0, 0.0, 0.0,   0.0, 1.0, 0.0);
+
+        /* Toroide principal no centro */
+        glutSolidTorus(0.275, 0.85, 24, 48);
+
+        /* Segundo toroide “atrás” do primeiro (mais longe da câmera) */
+        glPushMatrix();
+            glTranslatef(0.0f, 0.0f, -3.0f);
+            glutSolidTorus(0.275, 0.85, 24, 48);
+        glPopMatrix();
+
+        /* Opcional: marcador da luz sempre na frente da câmera (em eye-space) */
+        glPushMatrix();
+            glLoadIdentity();           /* volta a eye-space */
+            glTranslatef(0.0f, 0.0f, -0.5f);  /* 0.5 à frente da câmera */
+            drawLightMarker();
+        glPopMatrix();
+    }
+
+    glFlush();
+}
+
+void reshape (int w, int h)
+{
+    glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(40.0, (GLfloat)w/(GLfloat)h, 1.0, 20.0);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+/* Mouse:
+   - Botão esquerdo: avança a luz (modo 0) ou aproxima a câmera (modo 1). */
+void mouse(int button, int state, int x, int y)
+{
+    if (state != GLUT_DOWN) return;
+
+    switch (button) {
+        case GLUT_LEFT_BUTTON:
+            if (mode == 0) {
+                Lz += 0.3f;            /* anda ao longo do eixo Z */
+                if (Lz > 1.8f) Lz = -1.8f; /* reaparece do outro lado do toro */
+            } else {
+                camZ -= 0.3f;          /* aproxima a câmera do centro */
+                if (camZ < 2.0f) camZ = 2.0f;
+            }
+            glutPostRedisplay();
+            break;
+        default:
+            break;
+    }
+}
+
+void keyboard(unsigned char key, int x, int y)
+{
+    switch (key) {
+        case 'm':            /* alterna entre os dois modos do enunciado */
+        case 'M':
+            mode = 1 - mode;
+            glutPostRedisplay();
+            break;
+
+        /* No modo 1, controles finos da câmera: */
+        case 'a': camZ += 0.3f; if (camZ > 8.0f) camZ = 8.0f; glutPostRedisplay(); break;
+        case 'd': camZ -= 0.3f; if (camZ < 2.0f) camZ = 2.0f; glutPostRedisplay(); break;
+
+        case 27: exit(0); break; /* ESC */
+        default: break;
+    }
+}
+
+int main(int argc, char** argv)
+{
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
+    glutInitWindowSize(500, 500);
+    glutInitWindowPosition(100, 100);
+    glutCreateWindow("movelight - traducao da luz e headlight com 2 toros");
+    init();
+    glutDisplayFunc(display);
+    glutReshapeFunc(reshape);
+    glutMouseFunc(mouse);
+    glutKeyboardFunc(keyboard);
+    glutMainLoop();
+    return 0;
+}
