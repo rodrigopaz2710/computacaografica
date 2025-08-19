@@ -1,0 +1,124 @@
+#include <GL/glut.h>   
+#include <stdlib.h>
+
+/*  Inicializa material, fontes de luz e z-buffer  */
+void init(void)
+{
+    /* ----- Material do objeto (esfera) ----- */
+    GLfloat mat_ambient[]   = { 0.2f, 0.2f, 0.2f, 1.0f };
+    GLfloat mat_diffuse[]   = { 0.8f, 0.8f, 0.8f, 1.0f };
+    GLfloat mat_specular[]  = { 1.0f, 1.0f, 1.0f, 1.0f };
+    GLfloat mat_shininess[] = { 50.0f };          /* brilho para ver highlights */
+
+    glMaterialfv(GL_FRONT, GL_AMBIENT,   mat_ambient);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE,   mat_diffuse);
+    glMaterialfv(GL_FRONT, GL_SPECULAR,  mat_specular);
+    glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
+
+    /* ----- LUZ 0: posicional e vermelha ----- */
+    /* cores (RGBA) */
+    GLfloat light0_ambient[]  = { 0.10f, 0.00f, 0.00f, 1.0f }; /* ambiente levemente vermelha */
+    GLfloat light0_diffuse[]  = { 1.00f, 0.00f, 0.00f, 1.0f }; /* difusa vermelha (define a “cor da luz”) */
+    GLfloat light0_specular[] = { 1.00f, 0.30f, 0.30f, 1.0f }; /* reflexo especular com tom de vermelho */
+    /* posição (x,y,z,w) – w=1.0 => POSICIONAL; w=0.0 => DIRECIONAL */
+    GLfloat light0_position[] = { 1.0f, 1.0f, 1.0f, 1.0f };     /* posicional, acima à direita da câmera */
+
+    glLightfv(GL_LIGHT0, GL_AMBIENT,  light0_ambient);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE,  light0_diffuse);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, light0_specular);
+    glLightfv(GL_LIGHT0, GL_POSITION, light0_position);
+
+    /* ----- LUZ 1: spotlight (lanterna) VERDE vindo da esquerda ----- */
+    GLfloat light1_ambient[]   = { 0.0f, 0.05f, 0.0f, 1.0f };
+    GLfloat light1_diffuse[]   = { 0.0f, 1.00f, 0.0f, 1.0f };
+    GLfloat light1_specular[]  = { 0.0f, 1.00f, 0.0f, 1.0f };
+    /* posição à esquerda (x<0) e um pouco acima/à frente da câmera */
+    GLfloat light1_position[]  = { -2.0f, 0.2f, 2.0f, 1.0f };
+    /* direção do facho apontando para o centro (0,0,0): */
+    GLfloat spot_direction[]   = {  1.0f, -0.1f, -2.0f };  /* da esquerda para o centro */
+    /* atenuações e parâmetros de spotlight */
+    GLfloat spot_cutoff  = 35.0f;   /* ângulo do cone (0–90, 180 desliga) */
+    GLfloat spot_exp     = 15.0f;   /* concentração no centro do feixe   */
+    GLfloat att_const    = 1.5f;
+    GLfloat att_linear   = 0.5f;
+    GLfloat att_quad     = 0.2f;
+
+    glLightfv(GL_LIGHT1, GL_AMBIENT,   light1_ambient);
+    glLightfv(GL_LIGHT1, GL_DIFFUSE,   light1_diffuse);
+    glLightfv(GL_LIGHT1, GL_SPECULAR,  light1_specular);
+    glLightfv(GL_LIGHT1, GL_POSITION,  light1_position);
+
+    glLightf (GL_LIGHT1, GL_SPOT_CUTOFF,    spot_cutoff);
+    glLightfv(GL_LIGHT1, GL_SPOT_DIRECTION, spot_direction);
+    glLightf (GL_LIGHT1, GL_SPOT_EXPONENT,  spot_exp);
+
+    glLightf (GL_LIGHT1, GL_CONSTANT_ATTENUATION,  att_const);
+    glLightf (GL_LIGHT1, GL_LINEAR_ATTENUATION,    att_linear);
+    glLightf (GL_LIGHT1, GL_QUADRATIC_ATTENUATION, att_quad);
+
+    /* ----- Estado global ----- */
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glEnable(GL_LIGHT1);     /* habilita a segunda fonte de luz */
+    glEnable(GL_DEPTH_TEST);
+
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glShadeModel(GL_SMOOTH);
+}
+
+void display(void)
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    /* desenha uma esfera no centro para observar iluminação */
+    glutSolidSphere(1.0, 40, 32);
+
+    glFlush();
+}
+
+void reshape (int w, int h)
+{
+    glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    if (w <= h)
+        glOrtho(-1.5, 1.5,
+                -1.5*(GLfloat)h/(GLfloat)w,
+                 1.5*(GLfloat)h/(GLfloat)w,
+                -10.0, 10.0);
+    else
+        glOrtho(-1.5*(GLfloat)w/(GLfloat)h,
+                 1.5*(GLfloat)w/(GLfloat)h,
+                -1.5, 1.5,
+                -10.0, 10.0);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+void keyboard(unsigned char key, int x, int y)
+{
+    switch (key) {
+        case 27: 
+            exit(0);
+            break;
+        default:
+            break;
+    }
+}
+
+int main(int argc, char** argv)
+{
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
+    glutInitWindowSize(500, 500);
+    glutInitWindowPosition(100, 100);
+    glutCreateWindow("light.c - luz posicional vermelha + spotlight verde");
+    init();
+    glutDisplayFunc(display);
+    glutReshapeFunc(reshape);
+    glutKeyboardFunc(keyboard);
+    glutMainLoop();
+    return 0;
+}
