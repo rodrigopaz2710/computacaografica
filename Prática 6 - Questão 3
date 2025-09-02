@@ -1,0 +1,170 @@
+#include <GL/glut.h>
+#include <math.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+typedef struct { float x,y,z; } Vec3;
+
+/* caminho (pontos de controle); repita o 1º e o último para bordas da Catmull-Rom */
+static Vec3 P[] = {
+  { -6, 1.5f, -8 }, {-4, 2, -2 }, {-2, 3, 2 }, { 2, 2, 4 },
+  {  6, 1.2f,  0 }, { 4, 2, -4 }, { 0, 2.5f, -6 }, {-6, 1.5f, -8 }
+};
+static const int N = sizeof(P)/sizeof(P[0]);     /* inclui repetidos das pontas */
+
+static float tGlob = 0.0f;   /* parâmetro global [0, N-3) */
+static float speed = 0.4f;   /* unidades de t por segundo */
+static int   paused = 0;
+
+/* utilitários -------------------------------------------------------------- */
+static Vec3 add(Vec3 a, Vec3 b){ return (Vec3){a.x+b.x,a.y+b.y,a.z+b.z}; }
+static Vec3 sub(Vec3 a, Vec3 b){ return (Vec3){a.x-b.x,a.y-b.y,a.z-b.z}; }
+static Vec3 scl(Vec3 a, float s){ return (Vec3){a.x*s,a.y*s,a.z*s}; }
+static Vec3 norm(Vec3 a){ float L=sqrtf(a.x*a.x+a.y*a.y+a.z*a.z); return L>1e-6f?scl(a,1.0f/L):(Vec3){0,0,1}; }
+static Vec3 cross(Vec3 a, Vec3 b){ return (Vec3){a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x}; }
+
+/* Catmull-Rom: posição e derivada (t in [0,1]) ----------------------------- */
+static Vec3 catmullPos(Vec3 p0,Vec3 p1,Vec3 p2,Vec3 p3,float t){
+  float t2=t*t, t3=t2*t;
+  return (Vec3){
+    0.5f*((2*p1.x) + (-p0.x+p2.x)*t + (2*p0.x-5*p1.x+4*p2.x-p3.x)*t2 + (-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+    0.5f*((2*p1.y) + (-p0.y+p2.y)*t + (2*p0.y-5*p1.y+4*p2.y-p3.y)*t2 + (-p0.y+3*p1.y-3*p2.y+p3.y)*t3),
+    0.5f*((2*p1.z) + (-p0.z+p2.z)*t + (2*p0.z-5*p1.z+4*p2.z-p3.z)*t2 + (-p0.z+3*p1.z-3*p2.z+p3.z)*t3)
+  };
+}
+static Vec3 catmullDer(Vec3 p0,Vec3 p1,Vec3 p2,Vec3 p3,float t){
+  float t2=t*t;
+  return (Vec3){
+    0.5f*((-p0.x+p2.x) + 2*(2*p0.x-5*p1.x+4*p2.x-p3.x)*t + 3*(-p0.x+3*p1.x-3*p2.x+p3.x)*t2),
+    0.5f*((-p0.y+p2.y) + 2*(2*p0.y-5*p1.y+4*p2.y-p3.y)*t + 3*(-p0.y+3*p1.y-3*p2.y+p3.y)*t2),
+    0.5f*((-p0.z+p2.z) + 2*(2*p0.z-5*p1.z+4*p2.z-p3.z)*t + 3*(-p0.z+3*p1.z-3*p2.z+p3.z)*t2)
+  };
+}
+
+/* obtém posição/forward/up a partir de t global ---------------------------- */
+static void cameraAt(float tg, Vec3* eye, Vec3* center, Vec3* up){
+  int seg = (int)floorf(tg);                 /* segmento atual 0..N-4 */
+  float lt = tg - seg;                       /* t local 0..1 */
+  if(seg<0) seg = 0;
+  if(seg > N-4) seg = N-4;
+
+  Vec3 p0=P[seg], p1=P[seg+1], p2=P[seg+2], p3=P[seg+3];
+  Vec3 pos = catmullPos(p0,p1,p2,p3,lt);
+  Vec3 dir = norm(catmullDer(p0,p1,p2,p3,lt));
+  Vec3 worldUp = {0,1,0};
+  /* evita up colinear com dir */
+  if (fabsf(dir.x*worldUp.x + dir.y*worldUp.y + dir.z*worldUp.z) > 0.98f)
+    worldUp = (Vec3){0,0,1};
+  Vec3 right = norm(cross(dir, worldUp));
+  Vec3 upv   = norm(cross(right, dir));
+
+  *eye = pos;
+  *center = add(pos, dir);   /* olha “para a frente” */
+  *up = upv;
+}
+
+/* cena simples ------------------------------------------------------------- */
+static void drawScene(void){
+  /* grid */
+  glDisable(GL_LIGHTING);
+  glColor3f(0.25f,0.25f,0.25f);
+  glBegin(GL_LINES);
+  for(int i=-10;i<=10;++i){
+    glVertex3f(i,0,-10); glVertex3f(i,0,10);
+    glVertex3f(-10,0,i); glVertex3f(10,0,i);
+  }
+  glEnd();
+  /* alguns objetos de referência */
+  glEnable(GL_LIGHTING); glEnable(GL_LIGHT0);
+  GLfloat pos[4]={0,6,0,1}; glLightfv(GL_LIGHT0,GL_POSITION,pos);
+  glColor3f(0.8f,0.2f,0.2f);
+  glPushMatrix(); glTranslatef(-2,0.5f,2); glutSolidTeapot(0.5); glPopMatrix();
+  glColor3f(0.2f,0.7f,0.9f);
+  glPushMatrix(); glTranslatef(3,0.5f,-1); glutSolidTeapot(0.6); glPopMatrix();
+}
+
+/* GLUT --------------------------------------------------------------------- */
+static void display(void){
+  glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+  Vec3 eye,center,up;
+  cameraAt(tGlob, &eye,&center,&up);
+
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+  gluLookAt(eye.x,eye.y,eye.z, center.x,center.y,center.z, up.x,up.y,up.z);
+
+  drawScene();
+
+  /* desenha a curva e pontos de controle para depuração */
+  glDisable(GL_LIGHTING);
+  glColor3f(1,1,0);
+  glBegin(GL_LINE_STRIP);
+  for(int s=0;s<N-3;++s){
+    for(int i=0;i<=20;++i){
+      float t=i/20.0f;
+      Vec3 q=catmullPos(P[s],P[s+1],P[s+2],P[s+3],t);
+      glVertex3f(q.x,q.y,q.z);
+    }
+  }
+  glEnd();
+  glPointSize(6);
+  glColor3f(1,0,1);
+  glBegin(GL_POINTS);
+  for(int i=0;i<N;i++) glVertex3f(P[i].x,P[i].y,P[i].z);
+  glEnd();
+
+  glutSwapBuffers();
+}
+
+static void reshape(int w,int h){
+  glViewport(0,0,w,h);
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  gluPerspective(60.0,(float)w/h,0.1,100.0);
+  glMatrixMode(GL_MODELVIEW);
+}
+
+static void timer(int v){
+  if(!paused){
+    /* avanço por tempo real */
+    tGlob += speed * 0.016f;                 /* ~60 Hz */
+    float maxT = (float)(N-3);               /* N-3 segmentos válidos */
+    if (tGlob >= maxT) tGlob -= maxT;        /* loop contínuo */
+    if (tGlob < 0)     tGlob += maxT;
+  }
+  glutPostRedisplay();
+  glutTimerFunc(16,timer,0);
+}
+
+static void keyboard(unsigned char k,int x,int y){
+  switch(k){
+    case 27: exit(0);
+    case ' ': paused = !paused; break;
+    case '+': case '=': speed *= 1.2f; if(speed>3) speed=3; break;
+    case '-': case '_': speed /= 1.2f; if(speed<0.02f) speed=0.02f; break;
+    case 'r': case 'R': tGlob=0; speed=0.4f; paused=0; break;
+    default: break;
+  }
+}
+
+static void initGL(void){
+  glEnable(GL_DEPTH_TEST);
+  glClearColor(0,0,0,1);
+  glEnable(GL_COLOR_MATERIAL);
+  glShadeModel(GL_SMOOTH);
+}
+
+int main(int argc,char**argv){
+  glutInit(&argc,argv);
+  glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGB|GLUT_DEPTH);
+  glutInitWindowSize(900,600);
+  glutCreateWindow("Camera por spline (Catmull-Rom)");
+  initGL();
+  glutDisplayFunc(display);
+  glutReshapeFunc(reshape);
+  glutKeyboardFunc(keyboard);
+  glutTimerFunc(0,timer,0);
+  glutMainLoop();
+  return 0;
+}
