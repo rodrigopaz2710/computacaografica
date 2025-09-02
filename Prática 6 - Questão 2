@@ -1,0 +1,189 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <GL/glut.h>
+
+/* ----------------- dados da superfície (4x4 pontos) ----------------- */
+GLfloat ctrlpoints[4][4][3] = {
+   { {-1.5, -1.5,  4.0}, {-0.5, -1.5,  2.0}, { 0.5, -1.5, -1.0}, { 1.5, -1.5,  2.0} },
+   { {-1.5, -0.5,  1.0}, {-0.5, -0.5,  3.0}, { 0.5, -0.5,  0.0}, { 1.5, -0.5, -1.0} },
+   { {-1.5,  0.5,  4.0}, {-0.5,  0.5,  0.0}, { 0.5,  0.5,  3.0}, { 1.5,  0.5,  4.0} },
+   { {-1.5,  1.5, -2.0}, {-0.5,  1.5, -2.0}, { 0.5,  1.5,  0.0}, { 1.5,  1.5, -1.0} }
+};
+
+/* ----------------- parâmetros da grade e do eval mesh ----------------- */
+/* glMapGrid2f(divU, uMin, uMax, divV, vMin, vMax) */
+int   divU = 20, divV = 20;
+GLfloat uMin = 0.f, uMax = 1.f, vMin = 0.f, vMax = 1.f;
+
+/* glEvalMesh2(mode,  i1, i2,   j1, j2)  — índices da grade (0..divU/V)   */
+int u0 = 0, u1 = 20;   /* por padrão usa o grid todo */
+int v0 = 0, v1 = 20;
+
+static void remapSurface(void)
+{
+   /* re-mapeia a superfície e a grade sempre que algo mudar */
+   glMap2f(GL_MAP2_VERTEX_3, 0.f, 1.f, 3, 4,
+                            0.f, 1.f, 12, 4, &ctrlpoints[0][0][0]);
+   glEnable(GL_MAP2_VERTEX_3);
+   glEnable(GL_AUTO_NORMAL);
+
+   glMapGrid2f(divU, uMin, uMax, divV, vMin, vMax);
+}
+
+static void initlights(void)
+{
+   GLfloat ambient[]      = {0.2f, 0.2f, 0.2f, 1.0f};
+   GLfloat position[]     = {0.0f, 0.0f, 2.0f, 1.0f};
+   GLfloat mat_diffuse[]  = {0.6f, 0.6f, 0.6f, 1.0f};
+   GLfloat mat_specular[] = {1.0f, 1.0f, 1.0f, 1.0f};
+   GLfloat shin[]         = {50.0f};
+
+   glEnable(GL_LIGHTING);
+   glEnable(GL_LIGHT0);
+   glLightfv(GL_LIGHT0, GL_AMBIENT,  ambient);
+   glLightfv(GL_LIGHT0, GL_POSITION, position);
+   glMaterialfv(GL_FRONT, GL_DIFFUSE,   mat_diffuse);
+   glMaterialfv(GL_FRONT, GL_SPECULAR,  mat_specular);
+   glMaterialfv(GL_FRONT, GL_SHININESS, shin);
+}
+
+static void drawCtrlNet(void)
+{
+   int i, j;
+   glDisable(GL_LIGHTING);
+   glPointSize(5.f);
+   glColor3f(1.f, 1.f, 0.f);
+   glBegin(GL_POINTS);
+   for (i=0;i<4;i++)
+      for (j=0;j<4;j++)
+         glVertex3fv(ctrlpoints[i][j]);
+   glEnd();
+
+   /* linhas da malha para referência */
+   glColor3f(0.8f, 0.8f, 0.0f);
+   for (i=0;i<4;i++) {
+      glBegin(GL_LINE_STRIP);
+      for (j=0;j<4;j++) glVertex3fv(ctrlpoints[i][j]);
+      glEnd();
+   }
+   for (j=0;j<4;j++) {
+      glBegin(GL_LINE_STRIP);
+      for (i=0;i<4;i++) glVertex3fv(ctrlpoints[i][j]);
+      glEnd();
+   }
+   glEnable(GL_LIGHTING);
+}
+
+void display(void)
+{
+   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+   glPushMatrix();
+   glRotatef(85.f, 1.f, 1.f, 1.f);
+
+   /* superfície: use o intervalo de índices definido em u0..u1, v0..v1 */
+   glEvalMesh2(GL_FILL, u0, u1, v0, v1);
+
+   glPopMatrix();
+
+   drawCtrlNet();
+   glFlush();
+}
+
+void init(void)
+{
+   glClearColor(0.f,0.f,0.f,0.f);
+   glEnable(GL_DEPTH_TEST);
+   remapSurface();
+   initlights();
+}
+
+void reshape(int w, int h)
+{
+   glViewport(0, 0, (GLsizei) w, (GLsizei) h);
+   glMatrixMode(GL_PROJECTION);
+   glLoadIdentity();
+   if (w <= h)
+      glOrtho(-4.0, 4.0, -4.0*(GLfloat)h/(GLfloat)w, 4.0*(GLfloat)h/(GLfloat)w, -9.0, 9.0);
+   else
+      glOrtho(-4.0*(GLfloat)w/(GLfloat)h, 4.0*(GLfloat)w/(GLfloat)h, -4.0, 4.0, -9.0, 9.0);
+   glMatrixMode(GL_MODELVIEW);
+   glLoadIdentity();
+}
+
+/* ajuda rápida no terminal */
+static void printHelp(void)
+{
+   printf("Controles:\n");
+   printf("  a/A : +z / -z no ponto [0][0]\n");
+   printf("  s/S : +z / -z no ponto [0][3]\n");
+   printf("  d/D : +z / -z no ponto [3][0]\n");
+   printf("  f/F : +z / -z no ponto [3][3]\n");
+   printf("  g   : alterna resolucao da grade (10 <-> 40)\n");
+   printf("  u   : inverte intervalo U da grade (0..1 <-> 1..0)\n");
+   printf("  v   : inverte intervalo V da grade (0..1 <-> 1..0)\n");
+   printf("  j   : limita/libera faixa U no glEvalMesh2\n");
+   printf("  k   : limita/libera faixa V no glEvalMesh2\n");
+   printf("  ESC : sair\n");
+}
+
+void keyboard(unsigned char key, int x, int y)
+{
+   const float dz = 0.2f;
+
+   switch (key) {
+      /* z dos 4 cantos da malha */
+      case 'a': ctrlpoints[0][0][2] += dz; remapSurface(); glutPostRedisplay(); break;
+      case 'A': ctrlpoints[0][0][2] -= dz; remapSurface(); glutPostRedisplay(); break;
+
+      case 's': ctrlpoints[0][3][2] += dz; remapSurface(); glutPostRedisplay(); break;
+      case 'S': ctrlpoints[0][3][2] -= dz; remapSurface(); glutPostRedisplay(); break;
+
+      case 'd': ctrlpoints[3][0][2] += dz; remapSurface(); glutPostRedisplay(); break;
+      case 'D': ctrlpoints[3][0][2] -= dz; remapSurface(); glutPostRedisplay(); break;
+
+      case 'f': ctrlpoints[3][3][2] += dz; remapSurface(); glutPostRedisplay(); break;
+      case 'F': ctrlpoints[3][3][2] -= dz; remapSurface(); glutPostRedisplay(); break;
+
+      /* brincar com glMapGrid2f */
+      case 'g':
+         if (divU==20) { divU=40; divV=40; u1=40; v1=40; }
+         else          { divU=10; divV=10; u1=10; v1=10; }
+         remapSurface(); glutPostRedisplay(); break;
+
+      case 'u': /* inverte o intervalo U (primeiro e quarto parâmetro de glMapGrid2f) */
+         { float t=uMin; uMin=uMax; uMax=t; remapSurface(); glutPostRedisplay(); }
+         break;
+
+      case 'v': /* inverte o intervalo V (terceiro e quinto) */
+         { float t=vMin; vMin=vMax; vMax=t; remapSurface(); glutPostRedisplay(); }
+         break;
+
+      /* alterar terceiro e quinto parâmetros de glEvalMesh2 (intervalo de índices) */
+      case 'j': /* limita U */
+         if (u0==0) { u0 = divU/4; u1 = divU; } else { u0 = 0; u1 = divU; }
+         glutPostRedisplay(); break;
+
+      case 'k': /* limita V */
+         if (v0==0) { v0 = divV/4; v1 = divV; } else { v0 = 0; v1 = divV; }
+         glutPostRedisplay(); break;
+
+      case 27: exit(0); break;
+      default: break;
+   }
+}
+
+int main(int argc, char **argv)
+{
+   glutInit(&argc, argv);
+   glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
+   glutInitWindowSize (700, 600);
+   glutInitWindowPosition (100, 100);
+   glutCreateWindow("Superficie de Bezier - bezmesh.c (controles no terminal)");
+   init();
+   printHelp();
+   glutReshapeFunc(reshape);
+   glutDisplayFunc(display);
+   glutKeyboardFunc(keyboard);
+   glutMainLoop();
+   return 0;
+}
