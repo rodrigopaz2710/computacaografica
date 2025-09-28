@@ -2,7 +2,7 @@
 # 2) Instale (uma vez) os pacotes necessários:
 pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-freeglut
 
-# 3) Vá até a pasta do arquivo painter.c:
+# 3) Vá até a pasta do arquivo algoritmopintor.c:
 cd /c/Users/SEU_USUARIO/Desktop/redbook   # (ajuste o caminho)
 
 # 4) Compile:
