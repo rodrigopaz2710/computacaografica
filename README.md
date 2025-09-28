@@ -6,10 +6,10 @@ pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-freeglut
 cd /c/Users/SEU_USUARIO/Desktop/redbook   # (ajuste o caminho)
 
 # 4) Compile:
-gcc painter.c -o painter -lfreeglut -lopengl32 -lglu32
+gcc algoritmopintor.c -o algoritmopintor -lfreeglut -lopengl32 -lglu32
 
 # 5) Execute:
-./painter
+./algoritmopintor
 
 
 3) O que o programa faz 
