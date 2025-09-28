@@ -43,3 +43,11 @@ Implementar um particionamento espacial (BSP/Octree) para ordenação mais robus
 Carregar texturas de arquivo (ex.: stb_image.h) e modelos (OBJ) para deixar a cena mais rica.
 
 Migrar para VAOs/VBOs e pipeline moderno (GL 3+) quando sair do escopo da disciplina.
+
+
+
+Rodrigo:
+Ficou responsável pela implementação principal do Algoritmo Pintor em C/OpenGL. Ele desenvolveu a lógica de ordenação dos polígonos pela profundidade, garantindo que a cena fosse renderizada corretamente do fundo para frente. Além disso, cuidou da integração do código com as bibliotecas gráficas (GLUT/FreeGLUT) e fez os testes de compilação e execução no ambiente Windows/MSYS2.
+
+Matheus:
+Foi responsável pelo refinamento do projeto, incluindo a documentação e comentários no código, além da preparação do relatório final e do README. Também auxiliou na análise e ajustes da matriz de transformação e na organização dos experimentos visuais (modificação de posições dos polígonos, verificação de casos de sobreposição e comparação dos resultados com/sem ordenação).
