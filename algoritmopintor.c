@@ -1,6 +1,6 @@
-/* painter.c — Algoritmo Pintor em OpenGL/GLUT
+/* algoritmopintor.c — Algoritmo Pintor em OpenGL/GLUT
  * Requisitos de compilação (Windows + MSYS2/MinGW): 
- *   gcc painter.c -o painter -lfreeglut -lopengl32 -lglu32
+ *   gcc algoritmopintor.c -o algoritmopintor -lfreeglut -lopengl32 -lglu32
  *
  * Teclas:
  *   P/p  -> liga/desliga Algoritmo Pintor
